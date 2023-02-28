@@ -72,7 +72,10 @@ inline platform_version_ext decode_platform_version(std::string version_string) 
   auto major = to_int(major_string), minor = to_int(minor_string);
   if (!major || !minor) throw std::invalid_argument{"OpenCL platform version string is invalid"};
 
-  return platform_version_ext{platform_version{major.value(), minor.value()}, platform_specific};
+  return platform_version_ext{
+      platform_version{major.value(), minor.value()},
+      platform_specific
+  };
 }
 
 using support_result = typename std::pair<bool, std::vector<std::string>>;
@@ -99,26 +102,30 @@ public:
   using platform_pred_type = std::function<bool(cl::Platform)>;
   using device_pred_type = std::function<bool(cl::Device)>;
 
-  platform_selector(platform_version min_ver, bool verbose = true, platform_pred_type platform_pred = default_pred,
-                    device_pred_type device_pred = default_pred) {
+  platform_selector(
+      platform_version min_ver, bool verbose = true, platform_pred_type platform_pred = default_pred,
+      device_pred_type device_pred = default_pred
+  ) {
     std::vector<cl::Platform> platforms, suitable_platforms;
     cl::Platform::get(&platforms);
 
-    std::copy_if(platforms.begin(), platforms.end(), std::back_inserter(suitable_platforms),
-                 [min_ver, platform_pred, verbose](auto p) {
-                   const auto version = decode_platform_version(p.template getInfo<CL_PLATFORM_VERSION>()).ver;
-                   if (verbose) {
-                     std::cout << "Info: Found platform: " << p.template getInfo<CL_PLATFORM_NAME>()
-                               << ", version: " << version.major << "." << version.minor << "\n";
-                   }
+    std::copy_if(
+        platforms.begin(), platforms.end(), std::back_inserter(suitable_platforms),
+        [min_ver, platform_pred, verbose](auto p) {
+          const auto version = decode_platform_version(p.template getInfo<CL_PLATFORM_VERSION>()).ver;
+          if (verbose) {
+            std::cout << "Info: Found platform: " << p.template getInfo<CL_PLATFORM_NAME>()
+                      << ", version: " << version.major << "." << version.minor << "\n";
+          }
 
-                   if (version < min_ver && verbose) {
-                     std::cout << "Info: Does not fit minimum version requirements, have: " << version.major << "."
-                               << version.minor << ", requested: " << min_ver.major << "." << min_ver.minor << "\n";
-                   }
+          if (version < min_ver && verbose) {
+            std::cout << "Info: Does not fit minimum version requirements, have: " << version.major << "."
+                      << version.minor << ", requested: " << min_ver.major << "." << min_ver.minor << "\n";
+          }
 
-                   return (version >= min_ver) && platform_pred(p);
-                 });
+          return (version >= min_ver) && platform_pred(p);
+        }
+    );
 
     if (suitable_platforms.empty()) throw std::runtime_error{"No fitting OpenCL platform found"};
 
