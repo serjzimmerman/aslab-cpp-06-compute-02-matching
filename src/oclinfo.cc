@@ -8,8 +8,8 @@
  * ----------------------------------------------------------------------------
  */
 
-#include "opencl_include.hpp"
-#include "selector.hpp"
+#include "common/opencl_include.hpp"
+#include "common/selector.hpp"
 
 #include <exception>
 #include <ios>
@@ -23,9 +23,10 @@ static const auto print_delim = [](auto &os) { os << " -------- \n"; };
 
 std::string get_device_type_string(int type) {
   static const std::unordered_map<int, std::string> type_map = {
-      {CL_DEVICE_TYPE_GPU, "CL_DEVICE_TYPE_GPU"},
-      {CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU"},
-      {CL_DEVICE_TYPE_ACCELERATOR, "CL_DEVICE_TYPE_ACCELERATOR"}};
+      {CL_DEVICE_TYPE_GPU,         "CL_DEVICE_TYPE_GPU"        },
+      {CL_DEVICE_TYPE_CPU,         "CL_DEVICE_TYPE_CPU"        },
+      {CL_DEVICE_TYPE_ACCELERATOR, "CL_DEVICE_TYPE_ACCELERATOR"}
+  };
 
   auto found = type_map.find(type);
   if (found == type_map.end()) return "UNKNOWN";
