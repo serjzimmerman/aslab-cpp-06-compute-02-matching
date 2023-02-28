@@ -1,0 +1,9 @@
+[submodule "3rd-party/OpenCL-CLHPP"]
+	path = 3rd-party/OpenCL-CLHPP
+	url = https://github.com/KhronosGroup/OpenCL-CLHPP.git
+[submodule "3rd-party/OpenCL-Headers"]
+	path = 3rd-party/OpenCL-Headers
+	url = https://github.com/KhronosGroup/OpenCL-Headers.git
+[submodule "3rd-party/OpenCL-ICD-Loader"]
+	path = 3rd-party/OpenCL-ICD-Loader
+	url = https://github.com/KhronosGroup/OpenCL-ICD-Loader.git

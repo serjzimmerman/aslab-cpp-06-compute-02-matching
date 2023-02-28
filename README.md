@@ -1,1 +1,1 @@
-# 
+# Parallel exact multi-pattern matching with GPU (Aho-Corasick) using C++ and OpenCL
