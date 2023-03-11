@@ -7,3 +7,6 @@
 [submodule "3rd-party/OpenCL-ICD-Loader"]
 	path = 3rd-party/OpenCL-ICD-Loader
 	url = https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
+[submodule "3rd-party/graphs"]
+	path = 3rd-party/graphs
+	url = https://github.com/ajlekcahdp4/graphs.git

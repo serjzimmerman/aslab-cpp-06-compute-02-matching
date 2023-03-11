@@ -72,6 +72,7 @@ endif()
 add_subdirectory(3rd-party/OpenCL-Headers EXCLUDE_FROM_ALL)
 add_subdirectory(3rd-party/OpenCL-ICD-Loader EXCLUDE_FROM_ALL)
 add_subdirectory(3rd-party/OpenCL-CLHPP EXCLUDE_FROM_ALL)
+add_subdirectory(3rd-party/graphs EXCLUDE_FROM_ALL)
 
 add_library(popl INTERFACE)
 target_include_directories(popl INTERFACE 3rd-party/popl)
@@ -114,3 +115,7 @@ find_program(BASH_PROGRAM bash)
 
 add_opencl_program(oclinfo src/oclinfo.cc 220)
 target_enable_linter(oclinfo)
+
+add_opencl_program(ahocorasick src/ahocorasick.cc 220)
+target_enable_linter(ahocorasick)
+target_link_libraries(ahocorasick PUBLIC graphs)
