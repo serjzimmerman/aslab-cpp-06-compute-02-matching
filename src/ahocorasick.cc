@@ -3,21 +3,9 @@
 #include "ahocorasick/automaton.hpp"
 
 int main() {
-  ac::automaton at;
-
-  at.add_pattern("ta");
-  at.add_pattern("ate");
-  at.add_pattern("hello");
-  at.add_pattern("coats");
-  at.add_pattern("so");
-  at.add_pattern("test");
-  at.add_pattern("hell");
-  at.add_pattern("temper");
-  at.add_pattern("tempest");
-  at.add_pattern("temporary");
-  at.add_pattern("cool");
-
+  ac::automaton_builder at;
+  const std::array names = {"a", "ab", "bc", "bca", "c", "caa"};
+  at.add(names.begin(), names.end());
   at.build_links();
-
   at.dump();
 }

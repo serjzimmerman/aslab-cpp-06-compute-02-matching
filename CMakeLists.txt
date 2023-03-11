@@ -95,6 +95,7 @@ function(add_opencl_program TARGET_NAME INPUT_FILES OPENCL_VERSION)
                           CL_TARGET_OPENCL_VERSION=${OPENCL_VERSION})
   target_include_directories(${TARGET_NAME} PUBLIC include
                                                    ${KERNEL_HPP_INCLUDE})
+  target_compile_features(${TARGET_NAME} PRIVATE cxx_std_20)
 endfunction()
 
 function(add_kernel TARGET_NAME INPUT_FILE)

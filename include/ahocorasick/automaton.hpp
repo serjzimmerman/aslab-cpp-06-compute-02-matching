@@ -14,13 +14,15 @@
 
 #include <bit>
 #include <cassert>
+#include <concepts>
 #include <cstdint>
 #include <iostream>
+#include <iterator>
 #include <string_view>
 
 namespace ac {
 
-class automaton {
+class automaton_builder {
 private:
   using identifier_type = int;
 
@@ -30,6 +32,7 @@ private:
   struct node_attributes {
     std::string name;
     identifier_type failure_link = k_none_state, output_link = k_none_state;
+    bool accepting = false;
   };
 
   using graph_type = graphs::basic_directed_graph<identifier_type, node_attributes, char>;
@@ -42,9 +45,7 @@ private:
   auto create_node(std::string_view view) {
     const identifier_type key = m_graph.vertices();
     auto result = m_graph.insert({key, node_attributes{std::string{view}}});
-
     assert(result && "[Debug]: Broken automaton::create_node()");
-
     return m_graph.find(key);
   }
 
@@ -63,16 +64,23 @@ private:
   }
 
 public:
-  automaton() {
+  automaton_builder() {
     m_graph.insert({k_input_state, node_attributes{}});
     m_name_to_key_map[""] = k_input_state;
   }
 
-  void add_pattern(std::string view) {
+  template <std::input_iterator It> automaton_builder(It start, It finish) { add(start, finish); }
+
+  template <std::convertible_to<std::string_view> T>
+  automaton_builder(std::initializer_list<T> list) : automaton_builder{list.begin(), list.end()} {}
+
+  void add(std::string view) {
     auto curr_node = m_graph.find(k_input_state);
     std::string curr_string;
 
-    for (const auto &c : view) {
+    for (auto cstart = view.cbegin(), cfinish = view.cend(); cstart != cfinish; ++cstart) {
+      const char &c = *cstart;
+
       curr_string += c;
       auto &&adj_list = curr_node->second;
 
@@ -83,6 +91,7 @@ public:
 
       if (start != adj_list.end()) {
         curr_node = m_graph.find(start->key);
+        if (cstart == std::prev(cfinish)) curr_node->second->attr.accepting = true;
         continue;
       }
 
@@ -90,6 +99,16 @@ public:
       m_graph.create_link(curr_node->first, new_node->first, c);
       curr_node = new_node;
       m_name_to_key_map.insert({curr_string, new_node->first});
+
+      if (cstart == std::prev(cfinish)) curr_node->second->attr.accepting = true;
+    }
+  }
+
+  template <std::input_iterator It>
+    requires std::convertible_to<typename std::iterator_traits<It>::value_type, std::string_view>
+  void add(It start, It finish) {
+    for (; start != finish; ++start) {
+      add(*start);
     }
   }
 
@@ -111,7 +130,6 @@ public:
 
       identifier_type w = m_name_to_key_map.at(std::string{name});
       auto w_attributes = get_attributes(w);
-
       identifier_type x = w_attributes.failure_link;
 
       while (true) {
@@ -144,7 +162,7 @@ public:
 private:
   struct dumper {
     // 1. Automaton to dump
-    const automaton &at;
+    const automaton_builder &at;
 
     // 2. Print related info
     std::ostream &os;
@@ -152,7 +170,7 @@ private:
   private:
     std::ostream &begin_subgraph(unsigned rank) {
       os << "subgraph rank_" << rank << " {\n";
-      return os << "rank=same;\n";
+      return os << "rank = same;\n";
     };
 
     std::ostream &end_block() {
@@ -161,51 +179,67 @@ private:
     }
 
     std::ostream &begin_digraph() {
-      os << "digraph {\n";
+      os << "digraph {\n"
+         << "rankdir = \"LR\";\n\n";
       return os << "graph [outputorder=nodesfirst];\n\n";
     }
 
-    void print_declare_node(identifier_type node) { os << node << "; "; }
+    std::ostream &print_declare_node(identifier_type node, std::string_view attributes = "") {
+      const auto name = at.get_attributes(node).name;
+      os << node << " ["
+         << "label = \"" << name << "\"";
+      if (attributes.length()) os << (attributes.empty() ? "" : ", ") << attributes << "";
+      return os << "];\n";
+    }
 
     template <typename T>
-    void print_bind_node(
+    std::ostream &print_bind_node(
         identifier_type parent, identifier_type child, T &&label, std::string_view color = "black",
         std::string_view attributes = ""
     ) {
       os << parent << " -> " << child << " [label = \"" << std::forward<T>(label) << "\", color = \"" << color << "\"";
       if (attributes.length()) os << (attributes.empty() ? "" : ", ") << attributes << "";
-      os << "];\n";
+      return os << "];\n";
     }
 
   public:
-    dumper(const automaton &p_at, std::ostream &p_os) : at{p_at}, os{p_os} {}
+    dumper(const automaton_builder &p_at, std::ostream &p_os) : at{p_at}, os{p_os} {}
 
     void dump() {
       begin_digraph();
 
-      graphs::breadth_first_search(at.m_graph, automaton::k_input_state, [&, rank = -1](auto &&node) mutable -> void {
-        std::string_view name = node->attr.name;
-        const identifier_type key = node->key;
-        const auto signed_length = static_cast<int>(name.length());
-        assert(signed_length >= rank && "[Debug]: Internal error in AC dumper");
+      graphs::breadth_first_search(
+          at.m_graph, automaton_builder::k_input_state,
+          [&, rank = -1](auto &&node) mutable -> void {
+            std::string_view name = node->attr.name;
+            const identifier_type key = node->key;
+            const auto signed_length = static_cast<int>(name.length()), old_rank = rank;
 
-        if (signed_length == 0) {
-          rank = 0;
-          begin_subgraph(rank);
-          print_declare_node(key);
-          return;
-        }
+            assert(signed_length >= rank && "[Debug]: Internal error in AC dumper");
+            rank = signed_length;
 
-        else if (signed_length == rank) {
-          print_declare_node(key);
-          return;
-        }
+            const auto declare_key = [&](auto &&key) {
+              bool accepting = at.m_graph.find(key)->second->attr.accepting;
+              const auto attributes = (accepting ? "shape=doublecircle" : "shape=oval");
+              print_declare_node(key, attributes);
+            };
 
-        rank = signed_length;
-        end_block();
-        begin_subgraph(rank);
-        print_declare_node(key);
-      });
+            if (signed_length == 0) {
+              begin_subgraph(rank);
+              declare_key(key);
+              return;
+            }
+
+            else if (signed_length == old_rank) {
+              declare_key(key);
+              return;
+            }
+
+            end_block();
+            begin_subgraph(rank);
+            declare_key(key);
+          }
+      );
 
       end_block();
 
