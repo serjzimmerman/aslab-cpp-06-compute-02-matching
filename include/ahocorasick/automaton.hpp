@@ -43,7 +43,7 @@ private:
     const identifier_type key = m_graph.vertices();
     auto result = m_graph.insert({key, node_attributes{std::string{view}}});
 
-    assert(result && "[Debug]: broken automaton::create_node()");
+    assert(result && "[Debug]: Broken automaton::create_node()");
 
     return m_graph.find(key);
   }
@@ -115,7 +115,7 @@ public:
       identifier_type x = w_attributes.failure_link;
 
       while (true) {
-        assert(x != k_none_state);
+        assert(x != k_none_state && "[Debug]: Internal error in automaton::build_links()");
 
         auto x_attributes = get_attributes(x);
         std::string xa_name = x_attributes.name + a;
@@ -187,7 +187,7 @@ private:
         std::string_view name = node->attr.name;
         const identifier_type key = node->key;
         const auto signed_length = static_cast<int>(name.length());
-        assert(signed_length >= rank);
+        assert(signed_length >= rank && "[Debug]: Internal error in AC dumper");
 
         if (signed_length == 0) {
           rank = 0;
