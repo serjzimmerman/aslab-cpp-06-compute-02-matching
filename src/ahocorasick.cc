@@ -4,7 +4,7 @@
 
 int main() {
   ac::automaton_builder at;
-  const std::array names = {"a", "ab", "bc", "bca", "c", "caa"};
+  const std::array names = {"i", "in", "tin", "sting"};
   at.add(names.begin(), names.end());
   at.build_links();
   at.dump();

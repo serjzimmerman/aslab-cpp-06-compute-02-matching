@@ -19,6 +19,8 @@
 #include <iostream>
 #include <iterator>
 #include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace ac {
 
@@ -40,6 +42,7 @@ private:
 private:
   std::unordered_map<std::string, identifier_type> m_name_to_key_map;
   graph_type m_graph;
+  std::unordered_set<char> m_used_chars;
 
 private:
   auto create_node(std::string_view view) {
@@ -74,7 +77,9 @@ public:
   template <std::convertible_to<std::string_view> T>
   automaton_builder(std::initializer_list<T> list) : automaton_builder{list.begin(), list.end()} {}
 
-  void add(std::string view) {
+  void add(std::string_view view) {
+    if (view.empty()) return;
+
     auto curr_node = m_graph.find(k_input_state);
     std::string curr_string;
 
@@ -119,9 +124,21 @@ public:
 
       // Step 2. Check if the node is one step away from the root.
       auto &wa_attributes = get_attributes(key);
+      const auto fill_output_link = [&]() {
+        assert(wa_attributes.failure_link != k_none_state);
+        auto suffix_node_attributes = get_attributes(wa_attributes.failure_link);
+
+        if (suffix_node_attributes.accepting) {
+          wa_attributes.output_link = wa_attributes.failure_link;
+        } else {
+          wa_attributes.output_link = suffix_node_attributes.output_link;
+        }
+      };
+
       std::string_view name = wa_attributes.name;
       if (name.length() == 1) {
         wa_attributes.failure_link = k_input_state;
+        fill_output_link();
         return;
       }
 
@@ -150,6 +167,8 @@ public:
 
         x = x_attributes.failure_link;
       }
+
+      fill_output_link();
     };
 
     graphs::breadth_first_search(m_graph, k_input_state, [compute_visit](auto &&node) -> void {
@@ -245,10 +264,17 @@ private:
 
       for (const auto &v : at.m_graph) {
         for (const auto &e : v.second) {
-          print_bind_node(v.second->key, e.key, e.edge);
+          print_bind_node(v.first, e.key, e.edge);
         }
-        if (auto failure = v.second->attr.failure_link; failure == k_none_state || failure == k_input_state) continue;
-        print_bind_node(v.second->key, v.second->attr.failure_link, "", "red", "constraint=false");
+
+        if (auto failure = v.second->attr.failure_link; !(failure == k_none_state || failure == k_input_state)) {
+          print_bind_node(v.first, failure, "", "red", "constraint=false");
+        }
+
+        if (auto output = v.second->attr.output_link; output != k_none_state) {
+          assert(output != k_input_state && "[Debug]: Internal error. Output link can't point to the input node");
+          print_bind_node(v.first, output, "", "blue", "constraint=false");
+        }
       }
 
       end_block();
