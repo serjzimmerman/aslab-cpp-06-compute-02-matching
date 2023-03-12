@@ -1,4 +1,4 @@
-/* Tiled matrix multiplication with local memory. Accepts arbitrary size matrices and TILE_SIZE
+/*
  *
  *  @kernel    ( {"name" : "aho_corasick_kernel", "entry" : "search"} )
  *  @signature ( ["cl::Buffer", "cl::Buffer", "cl_uint", "cl::Buffer"] )
