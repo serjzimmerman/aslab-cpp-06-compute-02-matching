@@ -33,7 +33,8 @@ private:
 
   struct node_attributes {
     std::string name;
-    identifier_type failure_link = k_none_state, output_link = k_none_state;
+    identifier_type failure_link = k_none_state, output_link = k_none_state; // Output link can't point to the input.
+    // Thus, it can be used to indicate that the is no output link.
     bool accepting = false;
   };
 
@@ -174,6 +175,23 @@ public:
     graphs::breadth_first_search(m_graph, k_input_state, [compute_visit](auto &&node) -> void {
       compute_visit(node->key);
     });
+
+    for (auto &node : m_graph) {
+      auto &attr = node.second->attr;
+      if (attr.output_link == k_none_state) attr.output_link = k_input_state;
+    }
+
+    get_attributes(k_input_state).failure_link = k_input_state;
+
+#ifndef NDEBUG
+    // Verify that all node indices are positive.
+    for (const auto &node : m_graph) {
+      if (node.second->key == k_input_state) continue;
+      const auto &attr = node.second->attr;
+      assert(attr.failure_link >= 0);
+      assert(attr.output_link >= 0);
+    }
+#endif
   }
 
   friend struct dumper;
@@ -271,8 +289,8 @@ private:
           print_bind_node(v.first, failure, "", "red", "constraint=false");
         }
 
-        if (auto output = v.second->attr.output_link; output != k_none_state) {
-          assert(output != k_input_state && "[Debug]: Internal error. Output link can't point to the input node");
+        if (auto output = v.second->attr.output_link; output != k_input_state) {
+          assert(output != k_none_state && "[Debug]: Internal error. Output link pointing to placeholder node");
           print_bind_node(v.first, output, "", "blue", "constraint=false");
         }
       }
