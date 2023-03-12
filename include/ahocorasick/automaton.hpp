@@ -14,18 +14,22 @@
 
 #include <bit>
 #include <cassert>
+#include <climits>
 #include <concepts>
 #include <cstdint>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace ac {
 
+class cpu_searcher;
+
 class automaton_builder {
-private:
+public:
   using identifier_type = int;
 
   static constexpr identifier_type k_input_state = 0;
@@ -43,7 +47,6 @@ private:
 private:
   std::unordered_map<std::string, identifier_type> m_name_to_key_map;
   graph_type m_graph;
-  std::unordered_set<char> m_used_chars;
 
 private:
   auto create_node(std::string_view view) {
@@ -304,6 +307,161 @@ public:
     dumper dot_dumper = {*this, os};
     dot_dumper.dump();
   }
+
+  cpu_searcher make_cpu_searcher() const;
 };
+
+class cpu_searcher {
+public:
+  static constexpr unsigned k_max_size = 1 << CHAR_BIT;
+  using index_type = uint16_t;
+
+  struct node {
+    index_type failure_link, output_link;
+    bool accepting;
+    std::vector<index_type> children;
+  };
+
+private:
+  // Patterns that are being searched for
+  std::unordered_map<index_type, std::string> m_patterns;
+
+  // Lookup array to map input characters to custom alphabet
+  std::array<unsigned char, k_max_size> m_alpha_lookup;
+
+  // Flat automaton representation
+  std::vector<node> m_nodes;
+
+private:
+  template <typename It> static auto create_lookup_table(It start, It finish, unsigned char other) {
+    decltype(m_alpha_lookup) table = {};
+
+    std::fill(table.begin(), table.end(), other);
+    for (; start != finish; ++start) {
+      unsigned char c = start->first; // Cast to unsigned
+      table[c] = start->second;
+    }
+
+    return table;
+  }
+
+public:
+  cpu_searcher(const automaton_builder::graph_type &graph) {
+    std::unordered_map<char, unsigned> used_chars;
+
+    unsigned i = 0;
+    for (const auto &node : graph) {
+      const auto &attr = node.second->attr;
+      std::for_each(attr.name.begin(), attr.name.end(), [&](char c) {
+        if (used_chars.insert({c, i}).second) ++i;
+      });
+    }
+
+    m_alpha_lookup = create_lookup_table(used_chars.cbegin(), used_chars.cend(), used_chars.size());
+    assert(graph.vertices() <= std::numeric_limits<index_type>::max() && "Automaton to large to represent in memory");
+
+    const auto alphabet_size = used_chars.size();
+    m_nodes.resize(graph.vertices());
+    for (const auto &v : graph) {
+      auto &attr = v.second->attr;
+      auto &curr_node = m_nodes.at(v.first);
+
+      curr_node.failure_link = attr.failure_link;
+      curr_node.output_link = attr.output_link;
+      curr_node.accepting = attr.accepting;
+
+      curr_node.children.resize(alphabet_size);
+      if (attr.accepting) {
+        m_patterns.insert({v.first, attr.name});
+      }
+
+      for (const auto &e : v.second) {
+        const auto c = static_cast<unsigned char>(e.edge);
+        const auto mapped_index = m_alpha_lookup.at(c);
+        curr_node.children.at(mapped_index) = e.key;
+      }
+    }
+  }
+
+  struct search_result {
+    using occurences_type = std::vector<std::string_view::size_type>;
+    std::unordered_map<std::string, occurences_type> patterns;
+  };
+
+  search_result search(std::string_view view) const {
+    search_result result;
+
+    for (const auto &v : m_patterns) {
+      result.patterns.insert({v.second, {}});
+    }
+
+    const auto none_link = m_patterns.size();
+
+    using match_type = std::pair<index_type, std::string_view::size_type>;
+    std::vector<match_type> matches;
+
+    index_type curr_index = 0;
+    const auto *curr_state = &m_nodes.at(curr_index);
+
+    const auto follow_output_links = [&](index_type index, auto pos) {
+      const node *state = &m_nodes.at(index);
+      while (state->output_link) {
+        index = state->output_link;
+        state = &m_nodes.at(index);
+        assert(state->accepting && "[Debug]: Broken output link chain. The state should be accepting");
+        matches.push_back({index, pos});
+      }
+    };
+
+    const auto follow_failure_links = [&](index_type index, auto pos) {
+      const node *state = &m_nodes.at(index);
+      while (state->output_link) {
+        matches.push_back({index, pos});
+        index = state->output_link;
+        state = &m_nodes.at(index);
+      }
+    };
+
+    std::string_view::size_type pos = 0;
+    for (char signed_c : view) {
+      assert(curr_state);
+
+      ++pos;
+
+      unsigned char c = signed_c;
+      const auto mapped = m_alpha_lookup.at(c);
+
+      if (mapped == none_link) {
+        curr_index = 0;
+        curr_state = &m_nodes.at(curr_index);
+        continue;
+      }
+
+      while (curr_state->children.at(mapped) == 0) { // No next link
+        curr_index = curr_state->failure_link;
+        curr_state = &m_nodes.at(curr_index);
+      }
+
+      curr_index = curr_state->children.at(mapped);
+      curr_state = &m_nodes.at(curr_index);
+
+      follow_output_links(curr_index, pos);
+      if (curr_state->accepting) {
+        matches.push_back({curr_index, pos});
+      }
+    }
+
+    for (const auto &v : matches) {
+      const auto &pattern = m_patterns.at(v.first);
+      result.patterns.at(pattern).push_back(v.second - pattern.length());
+    }
+
+    return result;
+  }
+};
+
+inline cpu_searcher automaton_builder::make_cpu_searcher() const {
+  return cpu_searcher{m_graph};
+}
 
 } // namespace ac
