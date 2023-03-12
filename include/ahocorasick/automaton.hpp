@@ -311,7 +311,17 @@ public:
   cpu_searcher make_cpu_searcher() const;
 };
 
-class cpu_searcher {
+class multipattern_matcher {
+public:
+  struct search_result {
+    using occurences_type = std::vector<std::string_view::size_type>;
+    std::unordered_map<std::string, occurences_type> patterns;
+  };
+
+  virtual search_result search(std::string_view view) const = 0;
+};
+
+class cpu_searcher : multipattern_matcher {
 public:
   static constexpr unsigned k_max_size = 1 << CHAR_BIT;
   using index_type = uint16_t;
@@ -385,12 +395,7 @@ public:
     }
   }
 
-  struct search_result {
-    using occurences_type = std::vector<std::string_view::size_type>;
-    std::unordered_map<std::string, occurences_type> patterns;
-  };
-
-  search_result search(std::string_view view) const {
+  search_result search(std::string_view view) const override {
     search_result result;
 
     for (const auto &v : m_patterns) {
