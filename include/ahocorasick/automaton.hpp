@@ -415,15 +415,6 @@ public:
       }
     };
 
-    const auto follow_failure_links = [&](index_type index, auto pos) {
-      const node *state = &m_nodes.at(index);
-      while (state->output_link) {
-        matches.push_back({index, pos});
-        index = state->output_link;
-        state = &m_nodes.at(index);
-      }
-    };
-
     std::string_view::size_type pos = 0;
     for (char signed_c : view) {
       assert(curr_state);
@@ -439,7 +430,7 @@ public:
         continue;
       }
 
-      while (curr_state->children.at(mapped) == 0) { // No next link
+      while (curr_state->children.at(mapped) == 0 && curr_index != 0) { // No next link
         curr_index = curr_state->failure_link;
         curr_state = &m_nodes.at(curr_index);
       }
