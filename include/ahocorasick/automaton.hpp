@@ -331,6 +331,7 @@ private:
 
   // Flat automaton representation
   std::vector<node> m_nodes;
+  unsigned char m_none_link;
 
 private:
   template <typename It> static auto create_lookup_table(It start, It finish, unsigned char other) {
@@ -356,6 +357,7 @@ public:
         if (used_chars.insert({c, i}).second) ++i;
       });
     }
+    m_none_link = i;
 
     m_alpha_lookup = create_lookup_table(used_chars.cbegin(), used_chars.cend(), used_chars.size());
     assert(graph.vertices() <= std::numeric_limits<index_type>::max() && "Automaton to large to represent in memory");
@@ -395,7 +397,7 @@ public:
       result.patterns.insert({v.second, {}});
     }
 
-    const auto none_link = m_patterns.size();
+    const auto none_link = m_none_link;
 
     using match_type = std::pair<index_type, std::string_view::size_type>;
     std::vector<match_type> matches;
