@@ -56,7 +56,7 @@ def main():
     output_file.parent.mkdir(exist_ok=True, parents=True)
     output_file = str(output_file)
 
-    header_text = "#include <CL/opencl.hpp>\n#include <string>\n#include <utils.hpp>\n\n"
+    header_text = "#include \"common/opencl_include.hpp\"\n#include <string>\n#include \"common/utils.hpp\"\n\n"
     header_text += "struct {} {{ \n".format(kernel_class_name)
     header_text += "\tusing functor_type = cl::KernelFunctor<{}>;\n\n".format(
         functor_args)

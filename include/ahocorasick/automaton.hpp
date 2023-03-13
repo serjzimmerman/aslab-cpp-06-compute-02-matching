@@ -10,7 +10,9 @@
 
 #pragma once
 
+#include "common/selector.hpp"
 #include "graphs/directed_graph.hpp"
+#include "kernelhpp/ahocorasick_kernel.hpp"
 
 #include <bit>
 #include <cassert>
@@ -457,6 +459,31 @@ public:
     return result;
   }
 };
+
+/* class gpu_searcher : public multipattern_matcher, protected clutils::platform_selector {
+protected:
+  cl::Context m_ctx;
+  cl::CommandQueue m_queue;
+
+  cl::Program m_program;
+  using kernel = aho_corasick_kernel;
+  typename kernel::functor_type m_functor;
+
+  static constexpr clutils::platform_version cl_api_version = {2, 2};
+
+public:
+  gpu_searcher(bool verbose)
+      : clutils::platform_selector{cl_api_version, verbose}, m_ctx{m_device},
+        m_queue{m_ctx, cl::QueueProperties::Profiling}, m_program{m_ctx, kernel::source(t_name::name_str), true},
+        m_functor{m_program, kernel::entry()} {}
+
+  template <long t_info> auto get_device_info() const { return m_device.getInfo<t_info>(); }
+
+protected:
+  using func_signature = cl::Event(cl::Buffer);
+
+  search_result search(std::string_view view) const override {}
+}; */
 
 inline cpu_searcher automaton_builder::make_cpu_searcher() const {
   return cpu_searcher{m_graph};

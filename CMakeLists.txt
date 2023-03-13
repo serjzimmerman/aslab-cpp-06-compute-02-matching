@@ -117,6 +117,10 @@ find_program(BASH_PROGRAM bash)
 add_opencl_program(oclinfo src/oclinfo.cc 220)
 target_enable_linter(oclinfo)
 
+add_kernel(ahocorasick_kernel kernels/ahocorasick.cl)
+add_custom_target(ahocorasick_kernels ALL DEPENDS ahocorasick_kernel)
+
 add_opencl_program(ahocorasick src/ahocorasick.cc 220)
 target_enable_linter(ahocorasick)
 target_link_libraries(ahocorasick PUBLIC graphs)
+add_dependencies(ahocorasick ahocorasick_kernels)
